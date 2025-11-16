@@ -4,6 +4,26 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Daily Trading Bias</title>
+
+  <!-- ==== PWA MANIFEST (adds “Add to Home screen”) ==== -->
+  <link rel="manifest" href="data:application/manifest+json,{
+    \"name\": \"Daily Trading Bias\",
+    \"short_name\": \"Bias\",
+    \"start_url\": \".\",
+    \"display\": \"standalone\",
+    \"background_color\": \"#0b0f14\",
+    \"theme_color\": \"#ff6b6b\",
+    \"icons\": [
+      {
+        \"src\": \"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23ff6b6b'/%3E%3Ctext x='50' y='60' font-size='50' text-anchor='middle' fill='white' font-weight='bold'%3EB%3C/text%3E%3C/svg%3E\",
+        \"sizes\": \"192x192\",
+        \"type\": \"image/svg+xml\"
+      }
+    ]
+  }">
+  <meta name="theme-color" content="#0b0f14">
+  <!-- =============================================== -->
+
   <style>
     :root{--bg:#0b0f14;--card:#0f1720;--accent:#ff6b6b;--accent2:#4ade80;--text:#e6eef6}
     html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
@@ -188,6 +208,15 @@
   })();
 
 })();
+</script>
+
+<!-- ==== OPTIONAL: Tiny inline service worker for offline ==== -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('data:application/javascript;base64,c3dhZ2dlci5yZWdpc3RlcigpOw==');
+    });
+  }
 </script>
 </body>
 </html>
