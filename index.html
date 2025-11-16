@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Daily Trading Bias</title>
+  <style>
+    :root{--bg:#0b0f14;--card:#0f1720;--accent:#ff6b6b;--accent2:#4ade80;--text:#e6eef6}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{background:linear-gradient(180deg,#04060a 0%, #071021 100%);color:var(--text);display:flex;align-items:center;justify-content:center;padding:20px}
+    .app{width:100%;max-width:520px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    header h1{font-size:18px;margin:0}
+    header p{margin:0;font-size:12px;opacity:0.8}
+    .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+    .pair{display:flex;align-items:center;justify-content:space-between;padding:10px 8px;border-radius:10px;margin-bottom:8px;background:linear-gradient(90deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));}
+    .left{display:flex;align-items:center;gap:12px}
+    .flag{width:36px;height:36px;border-radius:8px;display:inline-grid;place-items:center;background:#061124;color:#fff;font-weight:600}
+    .sym{font-weight:700}
+    .controls{display:flex;gap:8px}
+    .btn{padding:8px 12px;border-radius:8px;border:0;font-weight:700;cursor:pointer;background:transparent;color:var(--text);box-shadow:inset 0 -1px 0 rgba(255,255,255,0.02)}
+    .btn.long{border:1px solid rgba(255,255,255,0.04)}
+    .btn.short{border:1px solid rgba(255,255,255,0.04)}
+    .btn.active.long{background:var(--accent2);color:#04260f;border-color:transparent}
+    .btn.active.short{background:var(--accent);color:#2a0707;border-color:transparent}
+    .footer{margin-top:12px;display:flex;justify-content:space-between;align-items:center;font-size:13px;opacity:0.9}
+    .small{font-size:12px;color:rgba(255,255,255,0.75)}
+    .reset-btn{background:transparent;border:1px dashed rgba(255,255,255,0.06);padding:6px 8px;border-radius:8px;color:var(--text);cursor:pointer}
+    @media (max-width:420px){.flag{width:30px;height:30px}.btn{padding:7px 10px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>Daily Trading Bias</h1>
+        <p class="small">Tap LONG or SHORT for each instrument. Resets at 12:00 AM local time.</p>
+      </div>
+      <div class="small">Local reset: 12:00 AM</div>
+    </header>
+
+    <div class="card" id="card">
+      <!-- pairs injected by JS -->
+    </div>
+
+    <div class="footer">
+      <div class="small">Status: <span id="status">Loading…</span></div>
+      <div>
+        <button class="reset-btn" id="manualReset">Reset now</button>
+      </div>
+    </div>
+
+    <p class="small" style="margin-top:10px">Tip: Add to home screen (Android: Chrome menu → Add to Home screen. iPhone: Safari → Share → Add to Home Screen).</p>
+  </div>
+
+<script>
+(function(){
+  const pairs = [
+    {id:'XAUUSD', label:'XAU / USD'},
+    {id:'USDJPY', label:'USD / JPY'},
+    {id:'GBPJPY', label:'GBP / JPY'},
+    {id:'EURUSD', label:'EUR / USD'},
+    {id:'GBPUSD', label:'GBP / USD'}
+  ];
+
+  const STORAGE_KEY = 'tradingBiasSelections_v1';
+  const DATE_KEY = 'tradingBiasDate_v1';
+
+  const card = document.getElementById('card');
+  const status = document.getElementById('status');
+  const manualReset = document.getElementById('manualReset');
+
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function loadState(){
+    let data = localStorage.getItem(STORAGE_KEY);
+    try{ data = data ? JSON.parse(data) : {}; }catch(e){ data = {}; }
+    return data;
+  }
+
+  function saveState(state){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(DATE_KEY, todayStr());
+  }
+
+  function clearState(){
+    const blank = {};
+    pairs.forEach(p=>blank[p.id]=null);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(blank));
+    localStorage.setItem(DATE_KEY, todayStr());
+    return blank;
+  }
+
+  function buildUI(){
+    card.innerHTML = '';
+    const state = loadState();
+    pairs.forEach(p=>{
+      const row = document.createElement('div'); row.className='pair';
+      const left = document.createElement('div'); left.className='left';
+      const flag = document.createElement('div'); flag.className='flag'; flag.textContent = p.id.slice(0,3);
+      const txt = document.createElement('div');
+      txt.innerHTML = `<div class="sym">${p.id}</div><div class="small">${p.label}</div>`;
+      left.appendChild(flag); left.appendChild(txt);
+
+      const controls = document.createElement('div'); controls.className='controls';
+      const longBtn = document.createElement('button'); longBtn.className='btn long'; longBtn.textContent='LONG';
+      const shortBtn = document.createElement('button'); shortBtn.className='btn short'; shortBtn.textContent='SHORT';
+
+      longBtn.addEventListener('click', ()=>{ select(p.id,'long'); updateUI(); });
+      shortBtn.addEventListener('click', ()=>{ select(p.id,'short'); updateUI(); });
+
+      controls.appendChild(longBtn); controls.appendChild(shortBtn);
+      row.appendChild(left); row.appendChild(controls);
+      card.appendChild(row);
+    });
+    updateUI();
+  }
+
+  function select(id,choice){
+    const state = loadState();
+    // toggle: if already selected, unselect
+    if(state[id] === choice) state[id] = null; else state[id] = choice;
+    saveState(state);
+    updateUI();
+  }
+
+  function updateUI(){
+    const state = loadState();
+    // update buttons
+    const rows = document.querySelectorAll('.pair');
+    rows.forEach((row,i)=>{
+      const id = pairs[i].id;
+      const long = row.querySelector('.btn.long');
+      const short = row.querySelector('.btn.short');
+      const val = state[id] || null;
+      long.classList.toggle('active', val === 'long');
+      short.classList.toggle('active', val === 'short');
+    });
+
+    // status text
+    const any = Object.values(state).filter(Boolean).length;
+    status.textContent = any ? `${any} selected today` : 'No selections yet';
+  }
+
+  function ensureDate(){
+    const saved = localStorage.getItem(DATE_KEY);
+    const today = todayStr();
+    if(saved !== today){
+      // reset
+      clearState();
+    }
+  }
+
+  // reset exactly at midnight local time
+  function scheduleMidnightReset(){
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0,0,1,0); // 1 second after midnight
+    const ms = next - now;
+    setTimeout(()=>{
+      clearState();
+      updateUI();
+      scheduleMidnightReset();
+    }, ms);
+  }
+
+  // Manual reset button
+  manualReset.addEventListener('click', ()=>{
+    if(confirm('Reset all selections for today?')){
+      clearState(); updateUI();
+    }
+  });
+
+  // initialize
+  (function init(){
+    // if no state exists, create a blank template
+    if(!localStorage.getItem(STORAGE_KEY)){
+      const blank = {}; pairs.forEach(p=>blank[p.id]=null); localStorage.setItem(STORAGE_KEY, JSON.stringify(blank));
+      localStorage.setItem(DATE_KEY, todayStr());
+    }
+    ensureDate();
+    buildUI();
+    scheduleMidnightReset();
+    // also check every minute (in case tab sleeps/wakes)
+    setInterval(()=>{ if(localStorage.getItem(DATE_KEY)!==todayStr()){ clearState(); updateUI(); } }, 60*1000);
+  })();
+
+})();
+</script>
+</body>
+</html>
